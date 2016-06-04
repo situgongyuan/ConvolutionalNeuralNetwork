@@ -92,9 +92,17 @@ class KNearestNeighbor(object):
 
     Input / Output: Same as compute_distances_two_loops
     """
+    """
     (num_train,num_feature) = self.X_train.shape
     transformed_train_x = self.X_train.reshape(num_train,1,num_feature)
     dists = np.sqrt(np.sum((transformed_train_x - X) ** 2, axis = 2)).T
+    return dists
+    """
+    Y = self.X_train
+    XY = np.dot(X,Y.T)
+    XX = np.sum(X ** 2,axis = 1,keepdims = True)
+    YY = np.sum(Y ** 2,axis = 1)
+    dists = np.sqrt(XX - 2 * XY + YY)
     return dists
 
   def predict_labels(self, dists, k=1):

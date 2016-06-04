@@ -51,7 +51,6 @@ def softmax_loss_vectorized(W, X, y, reg):
   Inputs and outputs are the same as softmax_loss_naive.
   """
   # Initialize the loss and gradient to zero.
-  dW = np.zeros_like(W)
   n_sample = X.shape[0]
 
   assert X.shape[1] == W.shape[0]
@@ -60,14 +59,15 @@ def softmax_loss_vectorized(W, X, y, reg):
   scores -= np.max(scores, axis = 1, keepdims = True)
   scores = np.exp(scores)
   probs = scores / np.sum(scores, axis = 1, keepdims = True)
-  kl_loss = np.sum(-np.log(probs[range(n_sample),y])) / n_sample
-  reg_loss = 0.5 * reg * np.sum(W ** 2)
+
+  kl_loss = -np.sum(np.log(probs[range(n_sample),y])) / n_sample
+  reg_loss = 0.5 * reg * np.sum(W[:-1,:] ** 2)
   loss = kl_loss + reg_loss
 
   dscores = probs
   dscores[range(n_sample),y] -= 1
   dscores /= n_sample
-  dW = np.dot(X.T, dscores) + reg * W
+  dW = np.dot(X.T, dscores)
 
   return loss, dW
 
