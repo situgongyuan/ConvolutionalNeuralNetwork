@@ -1,6 +1,7 @@
 import numpy as np
+from time import time
 try:
-  from cs231n.im2col_cython import col2im_cython, im2col_cython
+  from cs231n.im2col_cython import col2im_cython, im2col_cython, col22im_cython, im22col_cython
   from cs231n.im2col_cython import col2im_6d_cython
 except ImportError:
   print 'run the following from the cs231n directory and try again:'
@@ -28,7 +29,7 @@ def conv_forward_im2col(x, w, b, conv_param):
   out_width = (W + 2 * pad - filter_width) / stride + 1
   out = np.zeros((N, num_filters, out_height, out_width), dtype=x.dtype)
 
-  # x_cols = im2col_indices(x, w.shape[2], w.shape[3], pad, stride)
+  # = im2col_indices(x, w.shape[2], w.shape[3], pad, stride)
   x_cols = im2col_cython(x, w.shape[2], w.shape[3], pad, stride)
   res = w.reshape((w.shape[0], -1)).dot(x_cols) + b.reshape(-1, 1)
 
@@ -38,6 +39,25 @@ def conv_forward_im2col(x, w, b, conv_param):
   cache = (x, w, b, conv_param, x_cols)
   return out, cache
 
+def conv_forward_im22col(x, w, b, conv_param):
+  N, C, H, W = x.shape
+  num_filters, _, filter_height, filter_width = w.shape
+  stride, pad = conv_param['stride'], conv_param['pad']
+
+  # Check dimensions
+  assert (W + 2 * pad - filter_width) % stride == 0, 'width does not work'
+  assert (H + 2 * pad - filter_height) % stride == 0, 'height does not work'
+
+  # Create output
+  out_height = (H + 2 * pad - filter_height) / stride + 1
+  out_width = (W + 2 * pad - filter_width) / stride + 1
+
+  x_cols = im22col_cython(x, w.shape[2], w.shape[3], pad, stride)
+  out = x_cols.dot(w.reshape((w.shape[0],)).T) + b
+  out = out.transpose(0,2,1).rehape(N,num_filters,out_height,out_width)
+
+  cache = (x, w, b, conv_param, x_cols)
+  return out, cache
 
 def conv_forward_strides(x, w, b, conv_param):
   N, C, H, W = x.shape
@@ -118,15 +138,32 @@ def conv_backward_im2col(dout, cache):
   dw = dout_reshaped.dot(x_cols.T).reshape(w.shape)
 
   dx_cols = w.reshape(num_filters, -1).T.dot(dout_reshaped)
-  # dx = col2im_indices(dx_cols, x.shape, filter_height, filter_width, pad, stride)
+  #dx = col2im_indices(dx_cols, x.shape, filter_height, filter_width, pad, stride)
   dx = col2im_cython(dx_cols, x.shape[0], x.shape[1], x.shape[2], x.shape[3],
                      filter_height, filter_width, pad, stride)
 
   return dx, dw, db
 
+def conv_backward_im22col(dout,cache):
+  x, w, b, conv_param, x_cols = cache
+  stride, pad = conv_param['stride'], conv_param['pad']
 
-conv_forward_fast = conv_forward_strides
-conv_backward_fast = conv_backward_strides
+  db = np.sum(dout,axis = (0,2,3))
+
+  num_filters, c, filter_height, filter_width = w.shape
+  dout_reshape = dout.reshape(N,num_filters,-1).transpose(0,2,1)   #(10000,1024,4)
+  x_col_reshape = x_cols.reshape(-1,c * filter_width * filter_height) #(10000*1024,27
+  dw = (dout_reshape.reshape(-1,num_filters).T).dot(x_col_reshape).reshape(w.shape)
+
+  dx_cols = dout_reshape.dot(w.reshape(num_filters,-1))
+  dx = col22im_cython(dx_cols, x.shape[0], x.shape[1], x.shape[2], x.shape[3],
+                     filter_height, filter_width, pad, stride)
+
+  return dx, dw, db
+
+
+conv_forward_fast = conv_forward_im2col
+conv_backward_fast = conv_backward_im2col
 
 
 def max_pool_forward_fast(x, pool_param):
