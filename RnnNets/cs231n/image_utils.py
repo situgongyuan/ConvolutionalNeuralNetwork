@@ -1,7 +1,9 @@
 import urllib2, os, tempfile
 
 import numpy as np
-from scipy.misc import imread
+import scipy
+#from scipy.misc import imread
+#import scipy.misc.imread as imread
 
 from cs231n.fast_layers import conv_forward_fast
 
@@ -89,7 +91,7 @@ def image_from_url(url):
     _, fname = tempfile.mkstemp()
     with open(fname, 'wb') as ff:
       ff.write(f.read())
-    img = imread(fname)
+    img = scipy.misc.imread(fname)
     os.remove(fname)
     return img
   except urllib2.URLError as e:
